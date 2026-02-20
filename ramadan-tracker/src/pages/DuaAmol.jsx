@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
-import { FaBookOpen, FaQuran, FaHandsHelping, FaStar, FaHeart } from "react-icons/fa";
+import { FaBookOpen, FaQuran, FaHandsHelping, FaStar, FaHeart, FaArrowRight, FaLock } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/useAuth";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -16,21 +18,32 @@ const itemVariants = {
 
 const duas = [
   {
-    title: "Dua for Breaking Fast",
-    arabic: "اللَّهُمَّ لَكَ صُمْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ",
-    translation: "O Allah, I fasted for You and I break my fast with Your provision.",
-    source: "Abu Dawud",
-  },
-  {
-    title: "Dua for Laylatul Qadr",
+    title: "Dua of Forgiveness",
     arabic: "اللَّهُمَّ إِنَّكَ عَفُوٌّ تُحِبُّ الْعَفْوَ فَاعْفُ عَنِّي",
-    translation: "O Allah, You are the Most Forgiving, and You love forgiveness, so forgive me.",
+    transliteration:
+      "Allahumma innaka 'afuwwun tuhibbu al-'afwa fa'fu 'anni",
+    translation:
+      "O Allah, You are the Most Forgiving, and You love forgiveness, so forgive me.",
     source: "Tirmidhi",
   },
   {
-    title: "Dua Before Eating",
-    arabic: "بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ",
-    translation: "In the name of Allah and with the blessings of Allah.",
+    title: "Niyot of Roja",
+    arabic:
+      "نَوَيْتُ أَنْ أَصُومَ غَدًا مِنْ شَهْرِ رَمَضَانَ الْمُبَارَكِ فَرْضًا لَكَ يَا اللَّهُ فَتَقَبَّلْ مِنِّي إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ",
+    transliteration:
+      "Nawaitu an asuma ghadan, min shahri ramadanal mubarak; fardal laka ya Allahu, fatakabbal minni innika antas samiul alim.",
+    translation:
+      "I intend to fast tomorrow for the month of Ramadan, as an obligation for You, O Allah, so accept it from me. Indeed, You are the All-Hearing, All-Knowing.",
+    source: "Hadith",
+  },
+  {
+    title: "Dua for Iftar",
+    arabic:
+      "اللَّهُمَّ إِنِّي لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ",
+    transliteration:
+      "Allahumma inni laka sumtu wa bika aamantu [wa alayka tawakkaltu] wa 'ala rizqika aftartu.",
+    translation:
+      "O Allah, I fasted for You, believed in You, placed my trust in You, and I break my fast with Your provision.",
     source: "Abu Dawud",
   },
 ];
@@ -43,6 +56,17 @@ const amolList = [
 ];
 
 export default function DuaAmol() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleDailyDua = () => {
+    if (user) {
+      navigate("/daily-dua");
+    } else {
+      navigate("/auth");
+    }
+  };
+
   return (
     <div className="relative min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto relative z-10">
@@ -63,6 +87,33 @@ export default function DuaAmol() {
             <p className="text-gray-400 max-w-lg mx-auto">
               Essential duas and recommended deeds to maximize the blessings of Ramadan.
             </p>
+          </motion.div>
+
+          {/* Daily Dua Button */}
+          <motion.div variants={itemVariants} className="flex justify-center">
+            <motion.button
+              onClick={handleDailyDua}
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="glass rounded-2xl px-8 py-5 card-glow cursor-pointer flex items-center gap-4 group w-full sm:w-auto sm:min-w-[320px] justify-center relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-teal-500/5 to-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xl shadow-lg shadow-amber-500/20">
+                <FaBookOpen />
+              </div>
+              <div className="text-left relative z-10">
+                <h3 className="text-white font-semibold text-lg group-hover:text-amber-300 transition-colors">
+                  Daily Dua
+                </h3>
+                <p className="text-gray-400 text-xs flex items-center gap-1">
+                  {user ? (
+                    <>View Ramadan 1–30 Duas <FaArrowRight className="text-[10px] text-amber-400" /></>
+                  ) : (
+                    <><FaLock className="text-[10px] text-amber-400" /> Login to access daily duas</>
+                  )}
+                </p>
+              </div>
+            </motion.button>
           </motion.div>
 
           {/* Duas Section */}
@@ -87,6 +138,9 @@ export default function DuaAmol() {
                     dir="rtl"
                   >
                     {dua.arabic}
+                  </p>
+                  <p className="text-teal-300/80 text-sm mb-2">
+                    {dua.transliteration}
                   </p>
                   <p className="text-gray-300 text-sm italic mb-2">
                     "{dua.translation}"

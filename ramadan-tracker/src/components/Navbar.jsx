@@ -11,6 +11,7 @@ import {
   FaTimes,
   FaMoon,
   FaSignOutAlt,
+  FaClipboardList,
 } from "react-icons/fa";
 import { useAuth } from "../contexts/useAuth";
 
@@ -20,6 +21,8 @@ const navItems = [
   { name: "Suhoor & Iftar", path: "/suhoor-iftar", icon: <FaUtensils /> },
   { name: "Dua & Amol", path: "/dua-amol", icon: <FaBookOpen /> },
 ];
+
+const authNavItem = { name: "Daily Tracker", path: "/daily-tracker", icon: <FaClipboardList /> };
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,7 +94,7 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-1">
-            {navItems.map((item, i) => (
+            {[...navItems, ...(user ? [authNavItem] : [])].map((item, i) => (
               <NavLink
                 key={item.name}
                 to={item.path}
@@ -222,7 +225,7 @@ export default function Navbar() {
             className="lg:hidden overflow-hidden glass border-t border-sky-500/10"
           >
             <div className="px-4 py-4 space-y-1">
-              {navItems.map((item, i) => (
+              {[...navItems, ...(user ? [authNavItem] : [])].map((item, i) => (
                 <NavLink key={item.name} to={item.path} onClick={closeMenu}>
                   {({ isActive }) => (
                     <motion.div

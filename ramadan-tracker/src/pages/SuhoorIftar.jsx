@@ -1,146 +1,242 @@
-import { motion } from "framer-motion";
-import { FaUtensils, FaClock, FaMoon, FaSun } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaMoon, FaSun, FaChevronDown, FaSpinner, FaCalendarAlt } from "react-icons/fa";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase";
+
+const divisions = [
+  "Dhaka",
+  "Chattogram",
+  "Rajshahi",
+  "Khulna",
+  "Barishal",
+  "Sylhet",
+  "Rangpur",
+  "Mymensingh",
+];
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.2 },
+    transition: { staggerChildren: 0.03, delayChildren: 0.15 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 };
 
-const suhoorSuggestions = [
-  "Oatmeal with dates and honey",
-  "Whole grain bread with eggs",
-  "Yogurt with fruits and nuts",
-  "Banana smoothie with milk",
-];
-
-const iftarSuggestions = [
-  "Dates and water (Sunnah)",
-  "Lentil soup",
-  "Fresh fruit salad",
-  "Grilled chicken with rice",
-];
+const rowVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: (i) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.02, duration: 0.3 },
+  }),
+};
 
 export default function SuhoorIftar() {
+  const [selectedDivision, setSelectedDivision] = useState("Dhaka");
+  const [scheduleData, setScheduleData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      setLoading(true);
+      try {
+        const colRef = collection(db, selectedDivision);
+        const snapshot = await getDocs(colRef);
+        const data = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            RamadanNumber: parseInt(doc.id, 10),
+            ...doc.data(),
+          }))
+          .sort((a, b) => a.RamadanNumber - b.RamadanNumber);
+        setScheduleData(data);
+      } catch (error) {
+        console.error("Error fetching schedule:", error);
+        setScheduleData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSchedule();
+  }, [selectedDivision]);
+
   return (
     <div className="relative min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto relative z-10">
+      <div className="max-w-3xl mx-auto relative z-10">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
           className="space-y-6"
         >
-          {/* Header */}
-          <motion.div variants={itemVariants} className="text-center mb-8">
+          {/* ── Header ── */}
+          <motion.div variants={itemVariants} className="text-center mb-4">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-light text-teal-400 text-xs tracking-wider uppercase mb-4">
-              <FaUtensils /> Meal Planning
+              <FaMoon className="text-indigo-400" />
+              <span>Sehri &amp; Iftar Schedule</span>
+              <FaSun className="text-amber-400" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold gradient-text mb-2">
-              Suhoor & Iftar
+              Sehri &amp; Iftar Times
             </h1>
-            <p className="text-gray-400 max-w-lg mx-auto">
-              Plan your meals wisely to maintain energy and health throughout the blessed month.
+            <p className="text-gray-400 max-w-lg mx-auto text-sm">
+              View the complete 30‑day Ramadan schedule for your division.
             </p>
           </motion.div>
 
-          {/* Time Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Suhoor Card */}
-            <motion.div
-              variants={itemVariants}
-              whileHover={{ y: -4 }}
-              className="glass rounded-2xl p-6 card-glow relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full translate-x-6 -translate-y-6" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-indigo-500/20">
-                    <FaMoon />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">Suhoor</h3>
-                    <div className="flex items-center gap-1 text-gray-500 text-sm">
-                      <FaClock className="text-xs" /> Ends at 5:00 AM
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="text-sky-400 text-xs uppercase tracking-wider font-medium">
-                    Meal Suggestions
-                  </h4>
-                  {suhoorSuggestions.map((item, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + i * 0.1 }}
-                      className="flex items-center gap-2 text-gray-300 text-sm"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                      {item}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
+          {/* ── Division Selector ── */}
+          <motion.div
+            variants={itemVariants}
+            className="flex justify-center mb-2"
+          >
+            <div className="relative w-64">
+              <button
+                onClick={() => setDropdownOpen((o) => !o)}
+                className="w-full glass rounded-xl px-5 py-3 flex items-center justify-between text-white cursor-pointer hover:border-sky-400/40 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+              >
+                <span className="font-medium">{selectedDivision}</span>
+                <FaChevronDown
+                  className={`text-sky-400 text-sm transition-transform duration-300 ${
+                    dropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-            {/* Iftar Card */}
-            <motion.div
-              variants={itemVariants}
-              whileHover={{ y: -4 }}
-              className="glass rounded-2xl p-6 card-glow relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-full translate-x-6 -translate-y-6" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xl shadow-lg shadow-amber-500/20">
-                    <FaSun />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">Iftar</h3>
-                    <div className="flex items-center gap-1 text-gray-500 text-sm">
-                      <FaClock className="text-xs" /> Starts at 6:10 PM
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="text-amber-400 text-xs uppercase tracking-wider font-medium">
-                    Meal Suggestions
-                  </h4>
-                  {iftarSuggestions.map((item, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + i * 0.1 }}
-                      className="flex items-center gap-2 text-gray-300 text-sm"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      {item}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.ul
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute z-50 mt-2 w-full glass rounded-xl overflow-hidden shadow-2xl shadow-black/40 border border-sky-500/15"
+                  >
+                    {divisions.map((div) => (
+                      <li
+                        key={div}
+                        onClick={() => {
+                          setSelectedDivision(div);
+                          setDropdownOpen(false);
+                        }}
+                        className={`px-5 py-2.5 text-sm cursor-pointer transition-colors duration-200 ${
+                          selectedDivision === div
+                            ? "bg-sky-500/20 text-sky-300 font-semibold"
+                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {div}
+                      </li>
+                    ))}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
 
-          {/* Tip Card */}
+          {/* ── Schedule Table ── */}
+          <motion.div
+            variants={itemVariants}
+            className="glass rounded-2xl card-glow overflow-hidden"
+          >
+            {/* Table Header */}
+            <div className="grid grid-cols-3 text-center bg-gradient-to-r from-indigo-600/30 via-sky-600/30 to-amber-600/30">
+              <div className="px-4 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-300 border-r border-white/5 flex items-center justify-center gap-1.5">
+                <FaCalendarAlt className="text-indigo-400 text-xs" /> Date
+              </div>
+              <div className="px-4 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-sky-300 border-r border-white/5 flex items-center justify-center gap-1.5">
+                <FaMoon className="text-indigo-400 text-xs" /> Sehri&nbsp;End
+              </div>
+              <div className="px-4 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-300 flex items-center justify-center gap-1.5">
+                <FaSun className="text-amber-400 text-xs" /> Iftar
+              </div>
+            </div>
+
+            {/* Body */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <FaSpinner className="text-sky-400 text-2xl animate-spin" />
+                <span className="text-gray-400 text-sm">
+                  Loading schedule…
+                </span>
+              </div>
+            ) : scheduleData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-2">
+                <span className="text-gray-500 text-sm">
+                  No data found for{" "}
+                  <span className="text-sky-400 font-medium">
+                    {selectedDivision}
+                  </span>
+                </span>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedDivision}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    variants={containerVariants}
+                  >
+                    {scheduleData.map((row, idx) => (
+                      <motion.div
+                        key={row.id}
+                        custom={idx}
+                        variants={rowVariants}
+                        className={`grid grid-cols-3 text-center transition-colors duration-200 hover:bg-white/[0.03] ${
+                          idx % 2 === 0 ? "bg-white/[0.01]" : ""
+                        }`}
+                      >
+                        {/* Ramadan Date */}
+                        <div className="px-4 py-3 border-r border-white/5 flex items-center justify-center">
+                          <span className="text-indigo-200 font-medium text-sm sm:text-base tracking-wide">
+                            {row.Date
+                              ? new Date(row.Date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+                              : row.RamadanNumber}
+                          </span>
+                        </div>
+
+                        {/* Sehri End */}
+                        <div className="px-4 py-3 border-r border-white/5 flex items-center justify-center">
+                          <span className="text-sky-200 font-medium text-sm sm:text-base tracking-wide">
+                            {row.SehriEnd}
+                          </span>
+                        </div>
+
+                        {/* Iftar */}
+                        <div className="px-4 py-3 flex items-center justify-center">
+                          <span className="text-amber-200 font-medium text-sm sm:text-base tracking-wide">
+                            {row.Iftar}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.div>
+
+          {/* ── Tip Card ── */}
           <motion.div
             variants={itemVariants}
             className="glass rounded-2xl p-6 card-glow text-center"
           >
             <p className="text-gray-300 text-sm italic">
-              "The Prophet ﷺ said: Take Suhoor, for in Suhoor there is blessing."
+              "The Prophet ﷺ said: Take Suhoor, for in Suhoor there is
+              blessing."
             </p>
-            <p className="text-sky-400/60 text-xs mt-2">— Sahih Bukhari & Muslim</p>
+            <p className="text-sky-400/60 text-xs mt-2">
+              — Sahih Bukhari &amp; Muslim
+            </p>
           </motion.div>
         </motion.div>
       </div>

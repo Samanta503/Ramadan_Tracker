@@ -5,6 +5,7 @@ import {
   FaUtensils,
   FaBookOpen,
   FaMoon,
+  FaSun,
   FaQuran,
   FaHandsHelping,
   FaStar,
@@ -12,6 +13,8 @@ import {
   FaClock,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase";
 import MosqueSilhouette from "../components/MosqueSilhouette";
 
 // Ramadan 2026 starts approximately March 18, 2026
@@ -87,7 +90,77 @@ const dailyAmol = [
 export default function Dashboard() {
   const [countdown, setCountdown] = useState(getCountdown());
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [iftarCountdown, setIftarCountdown] = useState(null);
+  const [todayTimes, setTodayTimes] = useState(null); // { sehri24, iftar24, fastingDuration }
   const ramadanDay = getRamadanDay();
+
+  // Fetch today's Sehri & Iftar from Dhaka collection
+  useEffect(() => {
+    const fetchTodayTimes = async () => {
+      try {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+        const colRef = collection(db, "Dhaka");
+        const snapshot = await getDocs(colRef);
+        const todayDoc = snapshot.docs.find((doc) => doc.data().Date === todayStr);
+
+        if (todayDoc) {
+          const data = todayDoc.data();
+
+          // Parse raw times (e.g. "05:12" for Sehri, "05:58" for Iftar)
+          const [sH, sM] = data.SehriEnd.split(":").map(Number);
+          const [iH, iM] = data.Iftar.split(":").map(Number);
+
+          // Convert to 24-hr: Sehri is AM, Iftar is PM
+          const sehri24 = { h: sH, m: sM };
+          const iftar24 = { h: iH < 12 ? iH + 12 : iH, m: iM };
+
+          // Fasting duration = Iftar(24hr) - Sehri(24hr)
+          const totalSehriMin = sehri24.h * 60 + sehri24.m;
+          const totalIftarMin = iftar24.h * 60 + iftar24.m;
+          const durationMin = totalIftarMin - totalSehriMin;
+          const fastingDuration = {
+            hours: Math.floor(durationMin / 60),
+            minutes: durationMin % 60,
+          };
+
+          setTodayTimes({ sehri24, iftar24, fastingDuration });
+        }
+      } catch (err) {
+        console.error("Error fetching today's schedule:", err);
+      }
+    };
+
+    fetchTodayTimes();
+  }, []);
+
+  // Live countdown to Iftar
+  useEffect(() => {
+    if (!todayTimes) return;
+
+    const tick = () => {
+      const now = new Date();
+      const iftarTime = new Date();
+      iftarTime.setHours(todayTimes.iftar24.h, todayTimes.iftar24.m, 0, 0);
+
+      const diff = iftarTime - now;
+      if (diff <= 0) {
+        setIftarCountdown(null);
+        return;
+      }
+
+      setIftarCountdown({
+        hours: Math.floor(diff / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      });
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [todayTimes]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -141,67 +214,62 @@ export default function Dashboard() {
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-teal-500/5 to-transparent rounded-full -translate-x-10 translate-y-10" />
 
               <div className="relative z-10">
-                {countdown ? (
-                  /* Countdown to Ramadan */
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <FaMoon className="text-amber-400 text-xl" />
-                      <h2 className="text-xl font-semibold text-white">
-                        Ramadan Begins In
-                      </h2>
-                    </div>
-                    <div className="flex justify-center gap-4 sm:gap-6 mb-6">
-                      {[
-                        { label: "Days", value: countdown.days },
-                        { label: "Hours", value: countdown.hours },
-                        { label: "Minutes", value: countdown.minutes },
-                        { label: "Seconds", value: countdown.seconds },
-                      ].map((unit) => (
-                        <motion.div
-                          key={unit.label}
-                          className="glass-light rounded-xl p-4 min-w-[80px]"
-                          whileHover={{ scale: 1.05 }}
-                        >
-                          <motion.div
-                            key={unit.value}
-                            initial={{ scale: 1.2, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="text-3xl sm:text-4xl font-bold gradient-text"
-                          >
-                            {String(unit.value).padStart(2, "0")}
-                          </motion.div>
-                          <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">
-                            {unit.label}
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                    <p className="text-gray-400 text-sm">
-                      Prepare your heart and soul for the blessed month
-                    </p>
-                  </div>
-                ) : (
-                  /* During Ramadan */
-                  <div className="text-center">
-                    <h2 className="text-xl font-semibold text-white mb-2">
-                      Day {ramadanDay} of Ramadan
+                {/* Iftar Countdown */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <FaSun className="text-amber-400 text-xl" />
+                    <h2 className="text-xl font-semibold text-white">
+                      Time Left for Iftar
                     </h2>
-                    <div className="max-w-md mx-auto mb-4">
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Day 1</span>
-                        <span>Day 30</span>
-                      </div>
-                      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-sky-400 via-teal-400 to-amber-400 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(ramadanDay / 30) * 100}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                        />
-                      </div>
-                    </div>
+                    <span className="text-xs text-gray-500 ml-1">(Dhaka)</span>
                   </div>
-                )}
+
+                  {iftarCountdown ? (
+                    <>
+                      <div className="flex justify-center gap-4 sm:gap-6 mb-6">
+                        {[
+                          { label: "Hours", value: iftarCountdown.hours },
+                          { label: "Minutes", value: iftarCountdown.minutes },
+                          { label: "Seconds", value: iftarCountdown.seconds },
+                        ].map((unit) => (
+                          <motion.div
+                            key={unit.label}
+                            className="glass-light rounded-xl p-4 min-w-[80px]"
+                            whileHover={{ scale: 1.05 }}
+                          >
+                            <motion.div
+                              key={unit.value}
+                              initial={{ scale: 1.2, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              className="text-3xl sm:text-4xl font-bold"
+                              style={{
+                                background: "linear-gradient(135deg, #f59e0b, #f97316, #ef4444)",
+                                WebkitBackgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                              }}
+                            >
+                              {String(unit.value).padStart(2, "0")}
+                            </motion.div>
+                            <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">
+                              {unit.label}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                      <p className="text-gray-400 text-sm">
+                        May Allah accept your fast
+                      </p>
+                    </>
+                  ) : todayTimes ? (
+                    <p className="text-amber-400/80 text-sm py-4">
+                      Iftar time has passed for today
+                    </p>
+                  ) : (
+                    <p className="text-gray-500 text-sm py-4">
+                      No schedule found for today
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Mosque Silhouette */}

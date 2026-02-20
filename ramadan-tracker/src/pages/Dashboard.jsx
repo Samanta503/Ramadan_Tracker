@@ -392,12 +392,9 @@ export default function Dashboard() {
                           />
                         </div>
                         <span
-                          className="text-xl font-bold min-w-[52px] text-right"
-                          style={{
-                            background: `linear-gradient(135deg, ${pct < 40 ? '#ef4444, #f43f5e' : pct <= 70 ? '#f59e0b, #eab308' : '#10b981, #14b8a6'})`,
-                            WebkitBackgroundClip: "text",
-                            WebkitTextFillColor: "transparent",
-                          }}
+                          className={`text-xl font-bold min-w-[52px] text-right ${
+                            pct < 40 ? 'text-red-400' : pct <= 70 ? 'text-amber-400' : 'text-emerald-400'
+                          }`}
                         >{pct}%</span>
                       </div>
                       <p className="text-gray-400 text-sm mb-3">{completed} of {total} tasks completed</p>

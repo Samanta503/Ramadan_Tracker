@@ -11,10 +11,16 @@ import {
   FaStar,
   FaArrowRight,
   FaClock,
+  FaClipboardList,
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaInfoCircle,
+  FaUserCheck,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import { useAuth } from "../contexts/useAuth";
 import MosqueSilhouette from "../components/MosqueSilhouette";
 
 // Ramadan 2026 starts approximately March 18, 2026
@@ -87,11 +93,19 @@ const dailyAmol = [
   { icon: <FaStar />, text: "Make Dua after Iftar", done: false },
 ];
 
+/* 12 activity keys – must match DailyTracker.jsx */
+const ACTIVITY_KEYS = [
+  "roza", "namaz", "quran", "tarawe", "tahajjud", "istighfar",
+  "darood", "hasbunallah", "subhanallah", "lailaha", "lahawla", "tawheed",
+];
+
 export default function Dashboard() {
+  const { user } = useAuth();
   const [countdown, setCountdown] = useState(getCountdown());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [iftarCountdown, setIftarCountdown] = useState(null);
-  const [todayTimes, setTodayTimes] = useState(null); // { sehri24, iftar24, fastingDuration }
+  const [todayTimes, setTodayTimes] = useState(null);
+  const [todayProgress, setTodayProgress] = useState(null);
   const ramadanDay = getRamadanDay();
 
   // Fetch today's Sehri & Iftar from Dhaka collection
@@ -103,7 +117,7 @@ export default function Dashboard() {
 
         const colRef = collection(db, "Dhaka");
         const snapshot = await getDocs(colRef);
-        const todayDoc = snapshot.docs.find((doc) => doc.data().Date === todayStr);
+        const todayDoc = snapshot.docs.find((d) => d.data().Date === todayStr);
 
         if (todayDoc) {
           const data = todayDoc.data();
@@ -162,6 +176,38 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [todayTimes]);
 
+  // Fetch tracker progress for logged-in users
+  useEffect(() => {
+    if (!user) return;
+    const fetchProgress = async () => {
+      try {
+        const trackerRef = doc(db, "trackers", user.uid);
+        const snap = await getDoc(trackerRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          let latestDay = 0;
+          for (let d = 30; d >= 1; d--) {
+            if (ACTIVITY_KEYS.some((k) => data[`${d}-${k}`])) { latestDay = d; break; }
+          }
+          if (latestDay > 0) {
+            const completed = ACTIVITY_KEYS.filter((k) => data[`${latestDay}-${k}`]).length;
+            const total = ACTIVITY_KEYS.length;
+            const pct = Math.round((completed / total) * 100);
+            setTodayProgress({ pct, completed, total, day: latestDay });
+          } else {
+            setTodayProgress({ pct: 0, completed: 0, total: ACTIVITY_KEYS.length, day: ramadanDay || 1 });
+          }
+        } else {
+          setTodayProgress({ pct: 0, completed: 0, total: ACTIVITY_KEYS.length, day: ramadanDay || 1 });
+        }
+      } catch (err) {
+        console.error("Error fetching tracker progress:", err);
+        setTodayProgress({ pct: 0, completed: 0, total: ACTIVITY_KEYS.length, day: ramadanDay || 1 });
+      }
+    };
+    fetchProgress();
+  }, [user, ramadanDay]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(getCountdown());
@@ -178,6 +224,8 @@ export default function Dashboard() {
     if (hour < 20) return "Good Evening";
     return "Assalamu Alaikum";
   };
+
+  const userName = user?.displayName || user?.email?.split("@")[0] || "";
 
   return (
     <div className="relative min-h-screen pt-20 pb-12 px-4 sm:px-6 lg:px-8">
@@ -196,14 +244,23 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {greeting()}
+              {greeting()}{user ? `, ${userName}` : ""}
             </motion.p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4">
               <span className="gradient-text">Ramadan Mubarak</span>
             </h1>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Track your daily ibadah, maintain your routine, and make this Ramadan the most blessed one.
-            </p>
+            {user ? (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <FaUserCheck className="text-emerald-400 text-sm" />
+                <p className="text-emerald-400/80 text-sm">
+                  Welcome back — your progress is being tracked
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                Track your daily ibadah, maintain your routine, and make this Ramadan the most blessed one.
+              </p>
+            )}
           </motion.div>
 
           {/* Countdown / Day Counter */}
@@ -279,14 +336,97 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
+          {/* Daily Tracker Progress — logged-in users only */}
+          {user && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              {(() => {
+                const { pct = 0, completed = 0, total = 12, day = 1 } = todayProgress || {};
+                let alertBg, alertBorder, alertGlow, alertIcon, alertGradient, alertMessage;
+                if (pct < 40) {
+                  alertBg = "from-red-500/10 to-red-900/10";
+                  alertBorder = "border-red-500/30";
+                  alertGlow = "shadow-red-500/10";
+                  alertGradient = "from-red-400 to-rose-500";
+                  alertIcon = <FaExclamationTriangle className="text-red-400 text-xl" />;
+                  alertMessage = "You're falling behind today! Every small deed counts — start now and earn Allah's mercy.";
+                } else if (pct <= 70) {
+                  alertBg = "from-amber-500/10 to-yellow-900/10";
+                  alertBorder = "border-amber-500/30";
+                  alertGlow = "shadow-amber-500/10";
+                  alertGradient = "from-amber-400 to-yellow-500";
+                  alertIcon = <FaInfoCircle className="text-amber-400 text-xl" />;
+                  alertMessage = "Good effort so far! Push a little more to complete your daily ibadah — you're almost there.";
+                } else {
+                  alertBg = "from-emerald-500/10 to-green-900/10";
+                  alertBorder = "border-emerald-500/30";
+                  alertGlow = "shadow-emerald-500/10";
+                  alertGradient = "from-emerald-400 to-teal-500";
+                  alertIcon = <FaCheckCircle className="text-emerald-400 text-xl" />;
+                  alertMessage = "MashaAllah! You're doing amazing today. May Allah accept all your ibadah.";
+                }
+                return (
+                  <div className={`glass rounded-2xl p-5 sm:p-6 border ${alertBorder} shadow-lg ${alertGlow} relative overflow-hidden`}>
+                    <div className={`absolute inset-0 bg-gradient-to-r ${alertBg} pointer-events-none`} />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <FaClipboardList className="text-sky-400" />
+                          <h2 className="text-lg font-semibold text-white">Today's Progress</h2>
+                          <span className="text-xs text-gray-500">— Day {day}</span>
+                        </div>
+                        <Link to="/daily-tracker" className="text-xs text-sky-400 hover:text-sky-300 transition-colors flex items-center gap-1">
+                          Open Tracker <FaArrowRight className="text-[10px]" />
+                        </Link>
+                      </div>
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="flex-1 h-3 rounded-full bg-white/10 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={`h-full rounded-full bg-gradient-to-r ${alertGradient}`}
+                          />
+                        </div>
+                        <span
+                          className="text-xl font-bold min-w-[52px] text-right"
+                          style={{
+                            background: `linear-gradient(135deg, ${pct < 40 ? '#ef4444, #f43f5e' : pct <= 70 ? '#f59e0b, #eab308' : '#10b981, #14b8a6'})`,
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                          }}
+                        >{pct}%</span>
+                      </div>
+                      <p className="text-gray-400 text-sm mb-3">{completed} of {total} tasks completed</p>
+                      <div className={`flex items-start gap-3 p-3 rounded-xl bg-white/5 border ${alertBorder}`}>
+                        {alertIcon}
+                        <p className="text-gray-300 text-sm leading-relaxed">{alertMessage}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </motion.div>
+          )}
+
           {/* Quick Links */}
           <motion.div variants={itemVariants}>
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <FaStar className="text-amber-400 text-sm" />
               Quick Access
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {quickLinks.map((link) => (
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${user ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
+              {[...quickLinks, ...(user ? [{
+                title: "Daily Tracker",
+                description: "Track your daily Ramadan ibadah progress",
+                icon: <FaClipboardList />,
+                path: "/daily-tracker",
+                gradient: "from-violet-500 to-purple-600",
+                glow: "shadow-violet-500/20",
+              }] : [])].map((link) => (
                 <Link key={link.title} to={link.path}>
                   <motion.div
                     variants={itemVariants}
@@ -351,9 +491,17 @@ export default function Dashboard() {
                   </motion.div>
                 ))}
               </div>
-              <p className="text-gray-600 text-xs mt-4 text-center">
-                Login to save and track your daily progress
-              </p>
+              {user ? (
+                <Link to="/daily-tracker" className="block mt-4 text-center">
+                  <span className="text-sky-400 text-xs hover:text-sky-300 transition-colors flex items-center justify-center gap-1">
+                    View full tracker <FaArrowRight className="text-[10px]" />
+                  </span>
+                </Link>
+              ) : (
+                <p className="text-gray-600 text-xs mt-4 text-center">
+                  Login to save and track your daily progress
+                </p>
+              )}
             </motion.div>
 
             {/* Date & Time Card */}

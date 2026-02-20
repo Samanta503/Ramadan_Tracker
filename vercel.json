@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd ramadan-tracker && npm install && npm run build",
+  "outputDirectory": "ramadan-tracker/dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

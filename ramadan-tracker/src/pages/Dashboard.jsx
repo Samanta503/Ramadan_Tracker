@@ -522,11 +522,6 @@ export default function Dashboard() {
                 })}
               </div>
               <div className="w-full h-px bg-gradient-to-r from-transparent via-sky-500/20 to-transparent my-3" />
-              <div className="text-gray-400 text-xs">
-                {countdown
-                  ? `${countdown.days} days until Ramadan`
-                  : `Day ${ramadanDay} of Ramadan`}
-              </div>
             </motion.div>
           </div>
 
